@@ -1,0 +1,99 @@
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+const spinBtn = document.getElementById("spinBtn");
+const userIdInput = document.getElementById("userId");
+const winnerModal = document.getElementById("winnerModal");
+const resultText = document.getElementById("resultText");
+const claimBtn = document.getElementById("claimBtn");
+const spanClose = document.querySelector(".close");
+const winnerList = document.getElementById("winnerList");
+
+const segments = ["20rb","50rb","100rb","200rb","500rb","1jt","2jt"];
+const colors = ["#FFDDC1","#FFABAB","#FFC3A0","#D5AAFF","#85E3FF","#FFFD82","#B9FBC0"];
+let startAngle = 0;
+let spinning = false;
+
+// Fake winners
+const fakeWinners = [
+  {id:"A123", prize:"200rb"},
+  {id:"B456", prize:"1jt"},
+  {id:"C789", prize:"50rb"},
+  {id:"D111", prize:"2jt"}
+];
+
+// render fake winners
+function renderFakeWinners() {
+  winnerList.innerHTML = "";
+  fakeWinners.forEach(w=> {
+    const li = document.createElement("li");
+    li.textContent = `ID ${w.id} mendapatkan ${w.prize}`;
+    winnerList.appendChild(li);
+  });
+}
+renderFakeWinners();
+
+// Draw wheel
+function drawWheel() {
+  const arc = 2*Math.PI/segments.length;
+  ctx.clearRect(0,0,500,500);
+  for(let i=0;i<segments.length;i++){
+    const angle = startAngle + i*arc;
+    ctx.fillStyle = colors[i%colors.length];
+    ctx.beginPath();
+    ctx.moveTo(250,250);
+    ctx.arc(250,250,250,angle,angle+arc);
+    ctx.lineTo(250,250);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(250 + Math.cos(angle+arc/2)*150, 250 + Math.sin(angle+arc/2)*150);
+    ctx.rotate(angle+arc/2 + Math.PI/2);
+    ctx.fillStyle="#000";
+    ctx.font="bold 20px Arial";
+    ctx.fillText(segments[i], -ctx.measureText(segments[i]).width/2,0);
+    ctx.restore();
+  }
+}
+drawWheel();
+
+// Enable spin when ID diisi
+userIdInput.addEventListener("input", ()=>{
+  spinBtn.disabled = !userIdInput.value;
+});
+
+// Spin logic with GSAP
+spinBtn.addEventListener("click", ()=>{
+  const userId = userIdInput.value;
+  if(!userId) return;
+  if(localStorage.getItem("spin_"+userId)){
+    alert("Anda sudah memutar lucky spin.");
+    return;
+  }
+  spinning = true;
+  spinBtn.disabled = true;
+
+  const randomIndex = Math.floor(Math.random()*segments.length);
+  const degreesPerSegment = 360 / segments.length;
+  const finalDeg = 360*5 + (segments.length - randomIndex - 0.5)*degreesPerSegment;
+
+  gsap.to({deg:0}, {
+    deg: finalDeg,
+    duration: 5,
+    ease: "power4.out",
+    onUpdate: function(){
+      startAngle = this.targets()[0].deg * Math.PI / 180;
+      drawWheel();
+    },
+    onComplete: function(){
+      const prize = segments[randomIndex];
+      localStorage.setItem("spin_"+userId, prize);
+      resultText.innerHTML = `Selamat untuk ID <strong>${userId}</strong>, Anda mendapatkan hadiah dari lucky spin sebesar <strong>${prize}</strong>.`;
+      winnerModal.style.display = "block";
+    }
+  });
+});
+
+// Modal close
+spanClose.onclick = ()=>{ winnerModal.style.display="none"; }
+claimBtn.onclick = ()=>{ window.location.href="https://inikawasan.mom/"; }
+window.onclick = (e)=>{ if(e.target == winnerModal) winnerModal.style.display="none"; }
